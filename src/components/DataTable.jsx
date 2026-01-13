@@ -14,13 +14,21 @@ export default function DataTable({ page, user }) {
   const [showColumnEditor, setShowColumnEditor] = useState(false);
   const [newRow, setNewRow] = useState({});
   const [filters, setFilters] = useState({});
+  const [activeFilters, setActiveFilters] = useState({}); // 控制哪些列显示筛选框
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [columnWidths, setColumnWidths] = useState({});
+  const [resizingColumn, setResizingColumn] = useState(null);
+  const tableRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (page) {
-      setColumns(page.columns || []);
+      const cols = page.columns || [];
+      setColumns(cols);
+      // 加载保存的列宽
+      const savedWidths = Storage.getItem(`columnWidths_${page.id}`) || {};
+      setColumnWidths(savedWidths);
       loadData();
     }
   }, [page]);
@@ -52,6 +60,19 @@ export default function DataTable({ page, user }) {
 
     setFilteredData(result);
     setSelectedRows(new Set()); // 清空选择
+  };
+
+  const handleFilterToggle = (colKey) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [colKey]: !prev[colKey]
+    }));
+    // 如果关闭筛选，清空该列的筛选值
+    if (activeFilters[colKey]) {
+      const newFilters = { ...filters };
+      delete newFilters[colKey];
+      setFilters(newFilters);
+    }
   };
 
   const handleFilterChange = (colKey, value) => {
@@ -188,16 +209,40 @@ export default function DataTable({ page, user }) {
         return;
       }
 
-      // 将导入的数据映射到现有列
+      // 智能映射：为每个导入的列找到最匹配的WEB列
+      const columnMapping = {};
+      importedData.headers.forEach(importHeader => {
+        // 尝试精确匹配（列名或显示名称）
+        let matchedCol = columns.find(col => 
+          col.key === importHeader || col.label === importHeader
+        );
+        
+        // 如果精确匹配失败，尝试模糊匹配
+        if (!matchedCol) {
+          matchedCol = columns.find(col => 
+            col.key.toLowerCase().includes(importHeader.toLowerCase()) ||
+            col.label.toLowerCase().includes(importHeader.toLowerCase()) ||
+            importHeader.toLowerCase().includes(col.key.toLowerCase()) ||
+            importHeader.toLowerCase().includes(col.label.toLowerCase())
+          );
+        }
+        
+        if (matchedCol) {
+          columnMapping[importHeader] = matchedCol;
+        }
+      });
+
+      // 将导入的数据映射到WEB列
       const mappedData = importedData.data.map((row, index) => {
         const newRow = { id: Date.now().toString() + '_import_' + index };
         columns.forEach(col => {
-          // 尝试匹配列名或显示名称
-          const sourceKey = importedData.headers.find(h => 
-            h === col.key || h === col.label
+          // 查找映射的源列
+          const sourceHeader = Object.keys(columnMapping).find(
+            header => columnMapping[header].key === col.key
           );
-          if (sourceKey !== undefined) {
-            let value = row[sourceKey];
+          
+          if (sourceHeader !== undefined && row[sourceHeader] !== undefined) {
+            let value = row[sourceHeader];
             
             // 类型转换
             if (col.type === 'number') {
@@ -243,6 +288,46 @@ export default function DataTable({ page, user }) {
       return value;
     }
     return value || '-';
+  };
+
+  // 列宽调整相关
+  const handleColumnResizeStart = (colKey, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(colKey);
+    const startX = e.clientX;
+    const startWidth = columnWidths[colKey] || 150;
+    let currentWidth = startWidth;
+
+    const handleMouseMove = (e) => {
+      const diff = e.clientX - startX;
+      currentWidth = Math.max(50, startWidth + diff);
+      setColumnWidths(prev => {
+        const newWidths = { ...prev, [colKey]: currentWidth };
+        return newWidths;
+      });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      setResizingColumn(null);
+      // 保存列宽（使用当前计算的宽度）
+      if (page) {
+        setColumnWidths(prev => {
+          const finalWidths = { ...prev, [colKey]: currentWidth };
+          Storage.setItem(`columnWidths_${page.id}`, finalWidths);
+          return finalWidths;
+        });
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const getColumnWidth = (colKey) => {
+    return columnWidths[colKey] || 'auto';
   };
 
   if (!page) {
@@ -299,10 +384,10 @@ export default function DataTable({ page, user }) {
         </div>
       ) : (
         <div className="table-wrapper">
-          <table className="data-table">
+          <table className="data-table" ref={tableRef}>
             <thead>
               <tr>
-                <th className="select-column">
+                <th className="select-column" style={{ width: '50px' }}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -310,29 +395,50 @@ export default function DataTable({ page, user }) {
                   />
                 </th>
                 {columns.map((col) => (
-                  <th key={col.key}>
+                  <th 
+                    key={col.key}
+                    style={{ width: getColumnWidth(col.key) }}
+                  >
                     <div className="th-content">
                       <span>{col.label}</span>
+                      <button
+                        className={`filter-toggle-btn ${activeFilters[col.key] ? 'active' : ''}`}
+                        onClick={() => handleFilterToggle(col.key)}
+                        title="筛选"
+                      >
+                        🔍
+                      </button>
+                      {isAdmin && (
+                        <div
+                          className="column-resizer"
+                          onMouseDown={(e) => handleColumnResizeStart(col.key, e)}
+                          title="拖拽调整列宽"
+                        ></div>
+                      )}
                     </div>
                   </th>
                 ))}
-                {isAdmin && <th>操作</th>}
+                {isAdmin && <th style={{ width: '120px' }}>操作</th>}
               </tr>
-              <tr className="filter-row">
-                <th></th>
-                {columns.map((col) => (
-                  <th key={col.key} className="filter-cell">
-                    <input
-                      type="text"
-                      className="filter-input"
-                      placeholder="筛选..."
-                      value={filters[col.key] || ''}
-                      onChange={(e) => handleFilterChange(col.key, e.target.value)}
-                    />
-                  </th>
-                ))}
-                {isAdmin && <th></th>}
-              </tr>
+              {Object.keys(activeFilters).some(key => activeFilters[key]) && (
+                <tr className="filter-row">
+                  <th></th>
+                  {columns.map((col) => (
+                    <th key={col.key} className="filter-cell">
+                      {activeFilters[col.key] ? (
+                        <input
+                          type="text"
+                          className="filter-input"
+                          placeholder="筛选..."
+                          value={filters[col.key] || ''}
+                          onChange={(e) => handleFilterChange(col.key, e.target.value)}
+                        />
+                      ) : null}
+                    </th>
+                  ))}
+                  {isAdmin && <th></th>}
+                </tr>
+              )}
             </thead>
             <tbody>
               {filteredData.map((row) => (
@@ -482,7 +588,7 @@ export default function DataTable({ page, user }) {
             <h3>导入数据</h3>
             <div className="import-form">
               <p>支持CSV和JSON格式的文件导入</p>
-              <p className="import-hint">CSV文件的第一行应为列名，数据从第二行开始</p>
+              <p className="import-hint">系统会自动识别并映射列，无需严格匹配列名</p>
               <input
                 ref={fileInputRef}
                 type="file"

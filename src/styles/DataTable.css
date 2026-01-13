@@ -84,7 +84,43 @@
 .th-content {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  position: relative;
+}
+
+.filter-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.filter-toggle-btn:hover {
+  background: #e0e0e0;
+}
+
+.filter-toggle-btn.active {
+  background: #667eea;
+  color: white;
+}
+
+.column-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 1;
+}
+
+.column-resizer:hover {
+  background: #667eea;
 }
 
 .filter-row {
