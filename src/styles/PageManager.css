@@ -1,0 +1,108 @@
+.page-manager-modal {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.btn-close:hover {
+  background: #f0f0f0;
+}
+
+.page-list-container {
+  margin-bottom: 30px;
+}
+
+.page-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.page-list-header h4 {
+  font-size: 18px;
+  color: #333;
+}
+
+.page-list-manager {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.page-item-manager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.page-item-manager:last-child {
+  border-bottom: none;
+}
+
+.page-item-manager:hover {
+  background-color: #f9f9f9;
+}
+
+.page-name {
+  font-size: 16px;
+  color: #333;
+  font-weight: 500;
+}
+
+.page-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.empty-page-list {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}
+
+.edit-page-form {
+  padding-top: 25px;
+  border-top: 2px solid #e0e0e0;
+}
+
+.edit-page-form h4 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+}
+
